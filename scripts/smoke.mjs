@@ -114,6 +114,17 @@ r = await call(img, 'GET', { cookie: C, query: { id: id1 } }); assert.equal(r.st
 r = await call(state, 'GET', { cookie: A }); assert.equal(r.body.movies.length, 2);
 ok('another couple cannot read, change or delete these movies');
 
+r = await post({ action: 'create', room: 'Third Room', password: 'secret3', name: 'Ira' }, C);
+const C2 = cookieOf(r);
+r = await call(state, 'GET', { cookie: C2 });
+assert.equal(r.body.rooms.length, 2); assert.equal(r.body.room.name, 'Third Room');
+const otherRoom = r.body.rooms.find((room) => room.name === 'Other Couple');
+r = await call(auth, 'POST', { cookie: C2, body: { action: 'switch', roomId: otherRoom.id } });
+assert.equal(r.statusCode, 200);
+const C3 = cookieOf(r);
+r = await call(state, 'GET', { cookie: C3 }); assert.equal(r.body.room.name, 'Other Couple');
+ok('multiple rooms, room list and switching');
+
 // rename, delete
 r = await post({ action: 'rename', name: 'Sam' }, A); assert.equal(r.statusCode, 409);
 r = await post({ action: 'rename', name: 'Maya R' }, A); assert.equal(r.statusCode, 200);
@@ -124,7 +135,12 @@ r = await call(movies, 'DELETE', { cookie: B, query: { id: id2 } }); assert.equa
 r = await call(state, 'GET', { cookie: A }); assert.equal(r.body.movies.length, 1);
 ok('delete');
 
-r = await post({ action: 'logout' }, A); assert.match(r.headers['Set-Cookie'], /Max-Age=0/); ok('logout clears cookie');
+r = await post({ action: 'logout' }, A); assert.match(r.headers['Set-Cookie'], /Max-Age=0/);
+r = await post({ action: 'join', room: 'Popcorn Pair', password: 'secret1', name: 'Maya R' });
+assert.equal(r.statusCode, 200);
+r = await call(state, 'GET', { cookie: cookieOf(r) });
+assert.equal(r.body.room.name, 'Popcorn Pair'); assert.equal(r.body.movies.length, 1);
+ok('sign out preserves room membership and movie history');
 
 // lockout
 for (let i = 0; i < 8; i++) r = await post({ action: 'join', room: 'Other Couple', password: 'wrong-wrong', name: 'Raj' });

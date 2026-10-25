@@ -40,7 +40,12 @@ async function create(req, res, body) {
     throw e;
   }
   const [member] = await query("insert into members (room_id, slot, name) values ($1, 'a', $2) returning id", [room.id, name]);
-  await startSession(req, res, { roomId: room.id, memberId: member.id });
+  const current = await getSession(req);
+  const memberships = [
+    ...(current?.memberships || []).map((m) => ({ rid: m.roomId, mid: m.memberId })),
+    { rid: room.id, mid: member.id },
+  ];
+  await startSession(req, res, { roomId: room.id, memberId: member.id, memberships });
   return res.status(200).json({ ok: true });
 }
 
@@ -74,11 +79,16 @@ async function join(req, res, body) {
   }
   if (room.fail_count) await query('update rooms set fail_count = 0, locked_until = null where id = $1', [room.id]);
 
+  const current = await getSession(req);
+  const existingMemberships = (current?.memberships || []).map((m) => ({ rid: m.roomId, mid: m.memberId }));
   // Same name as someone already in the room: sign back in as them (new phone, cleared cookies).
   for (let attempt = 0; attempt < 2; attempt++) {
     const same = await query('select id from members where room_id = $1 and lower(name) = lower($2)', [room.id, name]);
     if (same.length) {
-      await startSession(req, res, { roomId: room.id, memberId: same[0].id });
+      const memberships = existingMemberships.some((m) => m.rid === room.id)
+        ? existingMemberships
+        : [...existingMemberships, { rid: room.id, mid: same[0].id }];
+      await startSession(req, res, { roomId: room.id, memberId: same[0].id, memberships });
       return res.status(200).json({ ok: true });
     }
     const taken = await query('select slot from members where room_id = $1', [room.id]);
@@ -88,13 +98,30 @@ async function join(req, res, body) {
     const slot = taken.some((t) => t.slot === 'a') ? 'b' : 'a';
     try {
       const [member] = await query('insert into members (room_id, slot, name) values ($1, $2, $3) returning id', [room.id, slot, name]);
-      await startSession(req, res, { roomId: room.id, memberId: member.id });
+      const memberships = [...existingMemberships, { rid: room.id, mid: member.id }];
+      await startSession(req, res, { roomId: room.id, memberId: member.id, memberships });
       return res.status(200).json({ ok: true });
     } catch (e) {
       if (!isUnique(e)) throw e; // someone grabbed the slot at the same moment: look again
     }
+
   }
   return res.status(409).json({ error: 'Could not join. Try again.' });
+}
+
+async function switchRoom(req, res, body) {
+  const current = await getSession(req);
+  if (!current) return res.status(401).json({ error: 'Sign in again.' });
+  const room = current.memberships.find((m) => m.roomId === body.roomId);
+  if (!room) return res.status(404).json({ error: 'You are not in that room.' });
+  const [member] = await query('select id from members where id = $1 and room_id = $2', [room.memberId, room.roomId]);
+  if (!member) return res.status(404).json({ error: 'That room is no longer available.' });
+  await startSession(req, res, {
+    roomId: room.roomId,
+    memberId: room.memberId,
+    memberships: current.memberships.map((m) => ({ rid: m.roomId, mid: m.memberId })),
+  });
+  return res.status(200).json({ ok: true });
 }
 
 async function rename(req, res, body) {
@@ -123,6 +150,8 @@ export default async function handler(req, res) {
         return await join(req, res, body);
       case 'rename':
         return await rename(req, res, body);
+      case 'switch':
+        return await switchRoom(req, res, body);
       case 'logout':
         endSession(req, res);
         return res.status(200).json({ ok: true });

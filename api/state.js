@@ -23,6 +23,11 @@ export default async function handler(req, res) {
     return res.status(200).json({
       room: { name: s.roomName },
       me: { slot: s.slot, name: s.name },
+      rooms: s.memberships.map((room) => ({
+        id: room.roomId,
+        name: room.roomName,
+        memberName: room.name,
+      })),
       members: members.map((m) => ({ slot: m.slot, name: m.name })),
       movies: movies.map((m) => ({
         id: m.id,

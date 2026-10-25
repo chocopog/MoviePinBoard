@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Movie Pinboard</title>
+<link rel="icon" href="/assets/cinema/reel.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Instrument+Sans:wght@400;500;600&family=Rye&display=swap">
 <style>
 /* Layout: a poster wall. Two boards (one per person) plus a Watched board, as ticket-stub tabs. 2:3 poster cards in a grid; each person has a colour that marks who pinned what. */
 :root{
@@ -26,7 +27,7 @@
   --danger:#a52c27;
   --pa:#922839;
   --pb:#b77b35;
-  --font-display:Papyrus,'Hiragino Kaku Gothic Pro',fantasy;
+  --font-display:'Rye',Papyrus,'Hiragino Kaku Gothic Pro',fantasy;
   --font-body:'Instrument Sans',system-ui,sans-serif;
   --font-mono:'DM Mono',ui-monospace,Menlo,monospace;
   --board:#e3cfad;
@@ -67,6 +68,22 @@ img{max-width:100%}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:18px}
 .wrap{position:relative;z-index:1}
+#room-rail{
+  position:fixed;z-index:3;left:18px;top:50%;transform:translateY(-50%);
+  width:150px;padding:12px;background:var(--ink);border:3px solid var(--ink);
+  box-shadow:5px 6px 0 rgb(55 33 23 / .2);color:var(--paper);
+}
+#room-rail h2{margin:0 0 10px;font:700 14px/1 var(--font-display);color:var(--paper);text-align:center}
+.room-list{display:flex;flex-direction:column;gap:7px}
+.room-choice{
+  width:100%;padding:8px 9px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  background:var(--paper);color:var(--ink);border:2px solid var(--paper);border-radius:2px;
+  cursor:pointer;font:600 12px var(--font-body);
+}
+.room-choice:hover{border-color:var(--accent)}
+.room-choice[aria-current="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.room-add{width:100%;margin-top:9px;padding:7px;background:transparent;color:var(--paper);border:1px dashed var(--paper);cursor:pointer;font-size:12px}
+.room-add:hover{background:rgb(255 248 232 / .1)}
 .cinema-decor{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .cinema-reel{
   position:absolute;width:clamp(130px,17vw,230px);aspect-ratio:1;opacity:.24;
@@ -149,6 +166,7 @@ svg{display:block}
 .switch button{border:0;background:none;border-radius:7px;padding:8px 10px;font-weight:600;font-size:14px;cursor:pointer;color:var(--muted)}
 .switch button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 .lobby form{display:flex;flex-direction:column;gap:14px}
+.lobby-cancel{align-self:center}
 .err{margin:0;color:var(--danger);font-size:14px}
 
 /* fields */
@@ -311,6 +329,12 @@ svg{display:block}
   h1{font-size:24px}
   #board{padding:30px 14px 28px;border-width:7px}
 }
+@media (max-width:760px){
+  #room-rail{position:relative;left:auto;top:auto;transform:none;width:min(100%,520px);margin:0 auto}
+  .room-list{flex-direction:row;flex-wrap:wrap;justify-content:center}
+  .room-choice{width:auto;max-width:180px}
+  .room-add{width:auto;margin:0}
+}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 </head>
@@ -356,11 +380,17 @@ svg{display:block}
       </div>
       <p id="l-err" class="err" role="alert" hidden></p>
       <button id="l-submit" class="btn" type="submit">Create room</button>
+      <button id="lobby-cancel" class="link lobby-cancel" type="button" hidden>Back to room</button>
     </form>
   </section>
 
   <!-- The boards -->
   <div id="app" hidden>
+    <aside id="room-rail" aria-label="Your rooms">
+      <h2>Your rooms</h2>
+      <div id="room-list" class="room-list"></div>
+      <button id="room-add" class="room-add" type="button">+ Join another</button>
+    </aside>
     <div class="bar">
       <div id="tabs" class="tabs" role="tablist" aria-label="Boards"></div>
       <button id="add-toggle" class="btn" type="button" aria-expanded="false" aria-controls="panel">
@@ -425,11 +455,11 @@ var POLL_MS = 5000;
 
 var S = {
   signedIn:false, roomName:'', my:null,
-  slots:{a:null,b:null}, movies:[],
+  slots:{a:null,b:null}, rooms:[], movies:[],
   tab:null, focusTab:null, formInit:false,
   confirmId:null, confirmTimer:null,
   renaming:false, img:'', imgBusy:false, saving:false,
-  mode:'create', sig:'', inflight:false, lastWrite:0
+  mode:'create', roomPicker:false, sig:'', inflight:false, lastWrite:0
 };
 
 function $(id){return document.getElementById(id);}
@@ -497,6 +527,7 @@ function applyState(d){
   S.roomName=d.room.name;
   S.my=d.me.slot;
   S.slots={a:null,b:null};
+  S.rooms=d.rooms||[];
   d.members.forEach(function(m){S.slots[m.slot]={name:m.name};});
   S.movies=d.movies;
 }
@@ -625,18 +656,38 @@ async function addMovie(ev){
 /* ---------- render ---------- */
 function render(){
   $('status').hidden=true;
-  if(!S.signedIn){
-    $('app').hidden=true;$('lobby').hidden=false;$('who').replaceChildren();
+  var showLobby=!S.signedIn||S.roomPicker;
+  $('app').hidden=showLobby;
+  $('lobby').hidden=!showLobby;
+  $('lobby-cancel').hidden=!S.roomPicker;
+  if(showLobby){
+    $('who').replaceChildren();
     if(S.mode==='join')restoreLobby();
     return;
   }
-  $('lobby').hidden=true;$('app').hidden=false;
   if(!S.renaming)renderWho();
+  renderRooms();
   if(S.tab!=='a'&&S.tab!=='b'&&S.tab!=='w')S.tab=savedTab()||S.my;
   syncForm();
   renderHint();
   renderTabs();
   renderBoard();
+}
+
+function renderRooms(){
+  var el=$('room-list');el.replaceChildren();
+  S.rooms.forEach(function(room){
+    var b=h('button','room-choice',room.name);
+    b.type='button';b.title=room.name;b.setAttribute('aria-current',String(room.name===S.roomName));
+    b.onclick=async function(){
+      if(room.name===S.roomName)return;
+      try{
+        await api('/api/auth',{method:'POST',body:{action:'switch',roomId:room.id}});
+        S.sig='';await refresh(true);
+      }catch(e){toast(e.message);}
+    };
+    el.append(b);
+  });
 }
 
 function renderWho(){
@@ -664,10 +715,10 @@ function renderWho(){
   w.append(h('span','room',S.roomName));
   var r=h('button','link','Rename');r.type='button';
   r.onclick=function(){S.renaming=true;renderWho();};
-  var o=h('button','link','Leave room');o.type='button';
-  o.title='Sign out on this device. Your boards stay in the room.';
+  var o=h('button','link','Sign out');o.type='button';
+  o.title='Sign out on this device. Your room membership and boards stay preserved.';
   o.onclick=async function(){
-    try{await api('/api/auth',{method:'POST',body:{action:'logout'}});}catch(e){}
+    try{await api('/api/auth',{method:'POST',body:{action:'logout'}});}catch(e){toast(e.message);}
     S.signedIn=false;S.sig='';S.tab=null;S.formInit=false;S.renaming=false;S.mode='join';openPanel(false);render();setMode('join');
   };
   w.append(r,o);
@@ -835,7 +886,7 @@ function setMode(m){
   $('l-pass').placeholder=m==='create'?'At least 6 characters':'The room’s password';
   $('l-tip').textContent=m==='create'
     ?'Your person picks their own name when they join.'
-    :'Already in this room? Use the same name to sign back in on a new device.';
+    :'Your name identifies you in this room. It is remembered on this device so you can sign back in without creating a new person.';
   $('l-err').hidden=true;
 }
 
@@ -848,7 +899,7 @@ async function submitLobby(e){
     }});
     rememberLobby($('l-room').value.trim(),$('l-name').value.trim());
     $('l-pass').value='';
-    S.tab=null;S.formInit=false;
+    S.roomPicker=false;S.tab=null;S.formInit=false;
     await refresh(true);
   }catch(err){
     $('l-err').textContent=err.message;$('l-err').hidden=false;
@@ -859,6 +910,8 @@ async function submitLobby(e){
 function wire(){
   $('mode-create').onclick=function(){setMode('create');};
   $('mode-join').onclick=function(){setMode('join');};
+  $('room-add').onclick=function(){S.roomPicker=true;render();setMode('join');};
+  $('lobby-cancel').onclick=function(){S.roomPicker=false;render();};
   $('lobby-form').addEventListener('submit',submitLobby);
 
   $('add-toggle').onclick=function(){openPanel($('panel').hidden);};
