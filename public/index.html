@@ -93,15 +93,19 @@ img{max-width:100%}
 }
 
 /* header */
-.top{width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 16px}
+.top{
+  width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 16px;
+  padding:14px 20px;background:var(--ink);color:var(--paper);
+  border:3px solid var(--ink);box-shadow:6px 7px 0 rgb(55 33 23 / .2);
+}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
-.brand svg{color:var(--accent);flex:none}
+.brand svg{color:var(--accent-soft);flex:none}
 h1{margin:0;font:800 28px/1.1 var(--font-display);letter-spacing:-.02em;text-wrap:balance}
-.who{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 12px;font-size:14px;color:var(--muted);min-width:0}
-.who strong{color:var(--fg);font-weight:600}
-.who .room{font:400 12px var(--font-mono);border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted)}
+.who{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 12px;font-size:14px;color:var(--paper);min-width:0}
+.who strong{color:var(--paper);font-weight:600}
+.who .room{font:400 12px var(--font-mono);border:1px solid var(--burgundy);border-radius:999px;padding:2px 10px;color:var(--paper);background:rgb(255 248 232 / .08)}
 .who form{display:flex;gap:6px}
-.who input{width:140px;padding:6px 10px}
+.who input{width:140px;padding:6px 10px;background:var(--paper);color:var(--ink);border-color:var(--paper)}
 .status{margin:0;color:var(--muted);text-align:center}
 
 /* shared bits */
@@ -152,7 +156,11 @@ svg{display:block}
 .field .tip{font-size:12px;color:var(--muted)}
 
 /* tab bar */
-.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px}
+.bar{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;
+  padding:12px 14px;background:var(--ink);border:3px solid var(--ink);
+  box-shadow:5px 6px 0 rgb(55 33 23 / .18);
+}
 .tabs{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;min-width:0}
 #app{width:100%}
 .tab{
