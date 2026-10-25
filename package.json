@@ -1,0 +1,23 @@
+{
+  "name": "movie-pinboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A shared movie pinboard for couples, with password-protected rooms.",
+  "scripts": {
+    "dev": "vercel dev",
+    "test": "node scripts/smoke.mjs",
+    "dev:local": "node scripts/dev.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.13"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11"
+  }
+}

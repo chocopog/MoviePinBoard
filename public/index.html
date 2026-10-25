@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Movie Pinboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a poster wall. Two boards (one per person) plus a Watched board, as ticket-stub tabs. 2:3 poster cards in a grid; each person has a colour that marks who pinned what. */
+:root{
+  color-scheme:light;
+  --bg:#f3f1f7;
+  --surface:#ffffff;
+  --surface-2:#e9e5f1;
+  --line:#d9d4e6;
+  --fg:#1c1a26;
+  --muted:#625d78;
+  --accent:#c8326b;
+  --accent-ink:#ffffff;
+  --accent-soft:#f8dde9;
+  --ok:#2f7d5b;
+  --ok-ink:#ffffff;
+  --danger:#b3261e;
+  --pa:#c8326b;
+  --pb:#1b7d86;
+  --font-display:'Bricolage Grotesque',system-ui,sans-serif;
+  --font-body:'Instrument Sans',system-ui,sans-serif;
+  --font-mono:'DM Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --bg:#12111a;--surface:#1b1a26;--surface-2:#272536;--line:#37344c;--fg:#efecf6;--muted:#a49fba;
+    --accent:#ff6b9a;--accent-ink:#1a0f16;--accent-soft:#3b2030;--ok:#5cc79a;--ok-ink:#0d241a;--danger:#ff8a80;
+    --pa:#ff6b9a;--pb:#53cfd4;
+  }
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.5 var(--font-body);
+  padding-block:calc(20px + env(safe-area-inset-top,0px)) calc(64px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+button{font:inherit;color:inherit}
+img{max-width:100%}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{color:var(--accent);flex:none}
+h1{margin:0;font:800 28px/1.1 var(--font-display);letter-spacing:-.02em;text-wrap:balance}
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:14px;color:var(--muted);min-width:0}
+.who strong{color:var(--fg);font-weight:600}
+.who .room{font:400 12px var(--font-mono);border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted)}
+.who form{display:flex;gap:6px}
+.who input{width:140px;padding:6px 10px}
+.status{margin:0;color:var(--muted)}
+
+/* shared bits */
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot-a{background:var(--pa)}
+.dot-b{background:var(--pb)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);
+  border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px;cursor:pointer;
+}
+.btn:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn.ghost:hover{background:var(--surface-2);filter:none}
+.link{background:none;border:0;padding:2px 0;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:13px}
+.link:hover{color:var(--fg)}
+input[type=text],input[type=password],textarea{
+  width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);
+  border-radius:8px;padding:10px 12px;font:inherit;
+}
+textarea{resize:vertical;min-height:64px}
+::placeholder{color:var(--muted);opacity:.8}
+svg{display:block}
+
+/* lobby */
+.lobby{
+  max-width:460px;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:22px;display:flex;flex-direction:column;gap:16px;
+}
+.lobby h2{margin:0;font:700 22px/1.2 var(--font-display)}
+.lobby .lede{margin:0;color:var(--muted)}
+.switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px}
+.switch button{border:0;background:none;border-radius:7px;padding:8px 10px;font-weight:600;font-size:14px;cursor:pointer;color:var(--muted)}
+.switch button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.lobby form{display:flex;flex-direction:column;gap:14px}
+.err{margin:0;color:var(--danger);font-size:14px}
+
+/* fields */
+.field{display:flex;flex-direction:column;gap:6px;border:0;padding:0;margin:0;min-width:0}
+.field label,.field legend{font:500 12px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0}
+.field .opt{text-transform:none;letter-spacing:0;opacity:.8}
+.field .tip{font-size:12px;color:var(--muted)}
+
+/* tab bar */
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.tab{
+  display:inline-flex;align-items:center;gap:8px;padding:8px 14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  font-weight:600;font-size:14px;cursor:pointer;
+}
+.tab:hover{border-color:var(--muted)}
+.tab .n{
+  font:400 12px var(--font-mono);color:var(--muted);
+  border-left:1px dashed var(--line);padding-left:10px;margin-left:2px;
+}
+.tab[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.tab[aria-selected="true"] .n{color:inherit;opacity:.75;border-color:currentColor}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+
+/* add panel */
+.panel{
+  display:grid;grid-template-columns:minmax(0,1fr) 168px;gap:20px;margin-top:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;
+}
+.fields{display:flex;flex-direction:column;gap:14px;min-width:0}
+.seg{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}
+.seg legend{width:100%;margin-bottom:6px}
+.seg label{font:600 14px var(--font-body);letter-spacing:0;text-transform:none;color:var(--fg);cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span.opt-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.seg input:checked+span.opt-pill{background:var(--accent-soft);border-color:var(--accent)}
+.seg input:focus-visible+span.opt-pill{outline:2px solid var(--accent);outline-offset:2px}
+.inline{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;width:fit-content}
+.inline input{width:18px;height:18px;accent-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.poster-col{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.drop{
+  position:relative;width:100%;aspect-ratio:2/3;overflow:hidden;cursor:pointer;
+  border:1.5px dashed var(--line);border-radius:10px;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.drop-hint{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px;text-align:center;font-size:13px;color:var(--muted)}
+
+/* board */
+.board-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px;margin-bottom:14px}
+.board-head h2{margin:0;font:700 22px/1.2 var(--font-display);letter-spacing:-.01em}
+.board-head .sub{font:400 12px var(--font-mono);color:var(--muted);margin-left:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:16px}
+.card{
+  display:flex;flex-direction:column;min-width:0;overflow:hidden;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+}
+.card.is-pinned{border-color:var(--accent)}
+.poster{position:relative;aspect-ratio:2/3;background:var(--surface-2);overflow:hidden}
+.poster img{width:100%;height:100%;object-fit:cover;display:block}
+.poster.empty{display:flex;align-items:center;justify-content:center}
+.poster.empty::before,.poster.empty::after{
+  content:"";position:absolute;top:0;bottom:0;width:16px;
+  background:radial-gradient(circle at 8px 12px,var(--bg) 0 3.5px,transparent 4px) 0 0/16px 24px repeat-y;
+}
+.poster.empty::before{left:4px}
+.poster.empty::after{right:4px}
+.initial{font:800 76px/1 var(--font-display);color:var(--accent);opacity:.55}
+.pin{
+  position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:var(--surface);color:var(--muted);border:1px solid var(--line);
+}
+.pin:hover{color:var(--fg)}
+.pin[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pin[aria-pressed="true"] svg{fill:currentColor}
+.from{
+  position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);
+  display:flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+  background:var(--surface);color:var(--fg);font:400 11px var(--font-mono);
+}
+.from span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{
+  position:absolute;left:8px;top:8px;width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;background:var(--ok);color:var(--ok-ink);
+}
+.is-checked .poster img,.is-watched .poster img{filter:grayscale(.75) brightness(.92)}
+.cbody{padding:12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ctitle{margin:0;font:700 16px/1.25 var(--font-display);overflow-wrap:anywhere}
+.is-checked .ctitle{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--muted)}
+.cnote{margin:0;font-size:13px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.cmeta{margin:0;font:400 12px var(--font-mono);color:var(--muted)}
+.cfoot{margin-top:auto;padding-top:8px;display:flex;flex-direction:column;gap:8px}
+.crow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tick{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;min-height:32px}
+.tick input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+.del{
+  min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid transparent;background:none;
+  color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;
+}
+.del:hover{color:var(--danger)}
+.del.sure{color:var(--danger);border-color:var(--danger)}
+.card .btn{width:100%;padding:8px 10px}
+
+.empty-state{
+  border:1.5px dashed var(--line);border-radius:12px;padding:40px 20px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);
+}
+.empty-state svg{color:var(--accent)}
+.empty-state h3{margin:0;font:700 18px var(--font-display);color:var(--fg)}
+.empty-state p{margin:0;max-width:44ch}
+
+.toast{
+  position:fixed;left:50%;transform:translate(-50%,8px);bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:500;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:560px){
+  .panel{grid-template-columns:minmax(0,1fr)}
+  .poster-col{max-width:168px}
+  h1{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4M3 12h4M3 16h4M17 8h4M17 12h4M17 16h4"/></svg>
+      <h1>Movie Pinboard</h1>
+    </div>
+    <div id="who" class="who"></div>
+  </header>
+
+  <p id="status" class="status" role="status">Loading…</p>
+
+  <!-- Lobby: create or join a room -->
+  <section id="lobby" class="lobby" hidden>
+    <div>
+      <h2>Your room</h2>
+      <p class="lede">A room holds one couple’s boards. Pick a room name and a password, then give both to your person.</p>
+    </div>
+    <div class="switch" role="group" aria-label="Create or join">
+      <button type="button" id="mode-create" aria-pressed="true">Create a room</button>
+      <button type="button" id="mode-join" aria-pressed="false">Join a room</button>
+    </div>
+    <form id="lobby-form">
+      <div class="field">
+        <label for="l-room">Room name</label>
+        <input id="l-room" type="text" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="popcorn-pair" required>
+      </div>
+      <div class="field">
+        <label for="l-pass">Password</label>
+        <input id="l-pass" type="password" maxlength="72" autocomplete="new-password" placeholder="At least 6 characters" required>
+      </div>
+      <div class="field">
+        <label for="l-name">Your name</label>
+        <input id="l-name" type="text" maxlength="24" autocomplete="off" placeholder="What your person calls you" required>
+        <span class="tip" id="l-tip">Your person picks their own name when they join.</span>
+      </div>
+      <p id="l-err" class="err" role="alert" hidden></p>
+      <button id="l-submit" class="btn" type="submit">Create room</button>
+    </form>
+  </section>
+
+  <!-- The boards -->
+  <div id="app" hidden>
+    <div class="bar">
+      <div id="tabs" class="tabs" role="tablist" aria-label="Boards"></div>
+      <button id="add-toggle" class="btn" type="button" aria-expanded="false" aria-controls="panel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Add a movie
+      </button>
+    </div>
+    <p id="hint" class="hint" hidden></p>
+
+    <form id="panel" class="panel" hidden autocomplete="off">
+      <div class="fields">
+        <div class="field">
+          <label for="f-title">Movie</label>
+          <input id="f-title" type="text" maxlength="120" placeholder="Title" required>
+        </div>
+        <div class="field">
+          <label for="f-note">Why this one? <span class="opt">optional</span></label>
+          <textarea id="f-note" rows="2" maxlength="300" placeholder="Who’s in it, where to watch, why you think they’d like it"></textarea>
+        </div>
+        <fieldset class="field seg">
+          <legend>Pin it to</legend>
+          <label><input type="radio" name="f-for" id="for-a" value="a"><span class="opt-pill"><i class="dot dot-a"></i><b id="for-a-name" style="font-weight:600"></b></span></label>
+          <label><input type="radio" name="f-for" id="for-b" value="b"><span class="opt-pill"><i class="dot dot-b"></i><b id="for-b-name" style="font-weight:600"></b></span></label>
+        </fieldset>
+        <label class="inline"><input type="checkbox" id="f-pin"> Pin to the top of the board</label>
+        <div class="row">
+          <button id="f-submit" class="btn" type="submit">Pin it</button>
+          <button id="f-cancel" class="btn ghost" type="button">Cancel</button>
+        </div>
+      </div>
+      <div class="poster-col">
+        <div id="drop" class="drop" tabindex="0" role="button" aria-label="Choose a poster image">
+          <img id="f-prev" alt="" hidden>
+          <div id="drop-hint" class="drop-hint">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+            <span>Drop, paste or choose a poster</span>
+          </div>
+        </div>
+        <input id="f-file" type="file" accept="image/*" hidden>
+        <button id="f-clear" class="link" type="button" hidden>Remove poster</button>
+      </div>
+    </form>
+
+    <section id="board" style="margin-top:22px" aria-live="polite"></section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var ICON = {
+  pin:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>',
+  check:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+  x:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  film:'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4M3 12h4M3 16h4M17 8h4M17 12h4M17 16h4"/></svg>'
+};
+
+var POLL_MS = 5000;
+
+var S = {
+  signedIn:false, roomName:'', my:null,
+  slots:{a:null,b:null}, movies:[],
+  tab:null, focusTab:null, formInit:false,
+  confirmId:null, confirmTimer:null,
+  renaming:false, img:'', imgBusy:false, saving:false,
+  mode:'create', sig:'', inflight:false, lastWrite:0
+};
+
+function $(id){return document.getElementById(id);}
+function h(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+function other(s){return s==='a'?'b':'a';}
+
+function savedTab(){
+  try{var t=localStorage.getItem('pinboard-tab');if(t==='a'||t==='b'||t==='w')return t;}catch(e){}
+  return null;
+}
+function saveTab(){try{localStorage.setItem('pinboard-tab',S.tab);}catch(e){}}
+
+var toastTimer=null;
+function toast(msg){
+  var t=$('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},3000);
+}
+
+async function api(path,opts){
+  opts=opts||{};
+  var init={method:opts.method||'GET',credentials:'same-origin',headers:{}};
+  if(opts.body!==undefined){init.headers['content-type']='application/json';init.body=JSON.stringify(opts.body);}
+  var r=await fetch(path,init);
+  var data=null;
+  try{data=await r.json();}catch(e){}
+  if(!r.ok){
+    var err=new Error((data&&data.error)||'Something went wrong. Try again.');
+    err.status=r.status;throw err;
+  }
+  return data;
+}
+
+/* names */
+function nameOf(s){
+  var v=S.slots[s];
+  if(v&&v.name)return v.name;
+  return s===S.my?'You':'Your person';
+}
+function boardLabel(s){
+  if(s===S.my)return 'Your board';
+  var v=S.slots[s];
+  return v&&v.name?v.name+'’s board':'Their board';
+}
+function forLabel(s){
+  if(s===S.my)return 'You';
+  var v=S.slots[s];
+  return v&&v.name?v.name:'Your person';
+}
+
+/* ---------- loading state ---------- */
+function applyState(d){
+  S.signedIn=true;
+  S.roomName=d.room.name;
+  S.my=d.me.slot;
+  S.slots={a:null,b:null};
+  d.members.forEach(function(m){S.slots[m.slot]={name:m.name};});
+  S.movies=d.movies;
+}
+
+async function refresh(force){
+  if(S.inflight)return;
+  S.inflight=true;
+  var startedAt=Date.now();
+  try{
+    var d=await api('/api/state');
+    // A change made while this request was on the wire would be overwritten by older data.
+    if(S.lastWrite>startedAt)return;
+    var sig=JSON.stringify(d);
+    if(force||sig!==S.sig){S.sig=sig;applyState(d);render();}
+    $('status').hidden=true;
+  }catch(e){
+    if(e.status===401){S.signedIn=false;S.sig='';render();}
+    else if(!S.signedIn){$('status').hidden=false;$('status').textContent='Could not reach the server. Reload to try again.';}
+  }finally{S.inflight=false;}
+}
+
+/* ---------- actions ---------- */
+function touch(){S.lastWrite=Date.now();}
+
+function findMovie(id){
+  for(var i=0;i<S.movies.length;i++)if(S.movies[i].id===id)return S.movies[i];
+  return null;
+}
+
+// Change the card on screen first, then tell the server. If the server says no, reload the truth.
+async function patch(id,fields){
+  var m=findMovie(id);if(!m)return;
+  Object.keys(fields).forEach(function(k){m[k]=fields[k];});
+  if('watched' in fields)m.watchedAt=fields.watched?Date.now():null;
+  touch();render();
+  try{await api('/api/movies?id='+encodeURIComponent(id),{method:'PATCH',body:fields});}
+  catch(e){toast(e.message);}
+  touch();
+  refresh(true);
+}
+async function removeMovie(id){
+  S.movies=S.movies.filter(function(m){return m.id!==id;});
+  touch();render();
+  try{await api('/api/movies?id='+encodeURIComponent(id),{method:'DELETE'});}
+  catch(e){toast(e.message);}
+  touch();
+  refresh(true);
+}
+
+/* image handling: shrink to a small JPEG before upload */
+async function toPoster(file){
+  var url=URL.createObjectURL(file);
+  try{
+    var img=await new Promise(function(res,rej){
+      var i=new Image();
+      i.onload=function(){res(i);};
+      i.onerror=function(){rej(new Error('bad image'));};
+      i.src=url;
+    });
+    var max=560,qs=[0.74,0.62,0.5,0.4];
+    for(var k=0;k<qs.length;k++){
+      var sc=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+      var w=Math.max(1,Math.round(img.naturalWidth*sc)),ht=Math.max(1,Math.round(img.naturalHeight*sc));
+      var c=document.createElement('canvas');c.width=w;c.height=ht;
+      var ctx=c.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,w,ht);ctx.drawImage(img,0,0,w,ht);
+      var out=c.toDataURL('image/jpeg',qs[k]);
+      if(out.length<300000)return out;
+      max=Math.round(max*0.85);
+    }
+    throw new Error('too big');
+  }finally{URL.revokeObjectURL(url);}
+}
+async function setImage(file){
+  if(!file||!/^image\//.test(file.type)){toast('That file is not an image.');return;}
+  S.imgBusy=true;
+  try{
+    S.img=await toPoster(file);
+    $('f-prev').src=S.img;$('f-prev').hidden=false;$('drop-hint').hidden=true;$('f-clear').hidden=false;
+  }catch(e){toast('Could not use that image. Try another one.');}
+  finally{S.imgBusy=false;}
+}
+function clearImage(){
+  S.img='';$('f-prev').removeAttribute('src');$('f-prev').hidden=true;$('drop-hint').hidden=false;$('f-clear').hidden=true;$('f-file').value='';
+}
+
+/* ---------- add form ---------- */
+function openPanel(open){
+  $('panel').hidden=!open;
+  $('add-toggle').setAttribute('aria-expanded',String(open));
+  if(open)$('f-title').focus();
+}
+function selectedFor(){return $('for-b').checked?'b':'a';}
+function syncForm(){
+  if(!S.my)return;
+  if(!S.formInit){$('for-'+other(S.my)).checked=true;S.formInit=true;}
+  $('for-a-name').textContent=forLabel('a');
+  $('for-b-name').textContent=forLabel('b');
+  $('f-submit').textContent='Pin to '+boardLabel(selectedFor());
+  $('f-submit').disabled=S.saving;
+}
+async function addMovie(ev){
+  ev.preventDefault();
+  var title=$('f-title').value.trim();
+  if(!title||S.saving)return;
+  if(S.imgBusy){toast('Still preparing the poster. One second.');return;}
+  var dest=selectedFor();
+  S.saving=true;syncForm();
+  try{
+    touch();
+    await api('/api/movies',{method:'POST',body:{
+      title:title,note:$('f-note').value.trim(),image:S.img||null,
+      forSlot:dest,pinned:$('f-pin').checked
+    }});
+    $('f-title').value='';$('f-note').value='';$('f-pin').checked=false;clearImage();
+    S.tab=dest;saveTab();
+    toast('Pinned to '+boardLabel(dest));
+    $('f-title').focus();
+  }catch(e){toast(e.message);}
+  finally{S.saving=false;touch();await refresh(true);syncForm();}
+}
+
+/* ---------- render ---------- */
+function render(){
+  $('status').hidden=true;
+  if(!S.signedIn){
+    $('app').hidden=true;$('lobby').hidden=false;$('who').replaceChildren();
+    return;
+  }
+  $('lobby').hidden=true;$('app').hidden=false;
+  if(!S.renaming)renderWho();
+  if(S.tab!=='a'&&S.tab!=='b'&&S.tab!=='w')S.tab=savedTab()||S.my;
+  syncForm();
+  renderHint();
+  renderTabs();
+  renderBoard();
+}
+
+function renderWho(){
+  var w=$('who');w.replaceChildren();
+  if(!S.my)return;
+  if(S.renaming){
+    var f=h('form');
+    var inp=h('input');inp.type='text';inp.id='rename-input';inp.maxLength=24;inp.value=nameOf(S.my);inp.setAttribute('aria-label','Your name');
+    var ok=h('button','btn','Save');ok.type='submit';ok.style.padding='6px 12px';
+    var no=h('button','link','Cancel');no.type='button';
+    no.onclick=function(){S.renaming=false;renderWho();};
+    f.append(inp,ok,no);
+    f.onsubmit=async function(e){
+      e.preventDefault();
+      var n=inp.value.trim();
+      if(n){try{await api('/api/auth',{method:'POST',body:{action:'rename',name:n}});}catch(err){toast(err.message);}}
+      S.renaming=false;await refresh(true);
+    };
+    w.append(f);
+    inp.focus();inp.select();
+    return;
+  }
+  w.append(h('i','dot dot-'+S.my));
+  var s=h('span');s.append('You are ');s.append(h('strong',null,nameOf(S.my)));w.append(s);
+  w.append(h('span','room',S.roomName));
+  var r=h('button','link','Rename');r.type='button';
+  r.onclick=function(){S.renaming=true;renderWho();};
+  var o=h('button','link','Leave room');o.type='button';
+  o.title='Sign out on this device. Your boards stay in the room.';
+  o.onclick=async function(){
+    try{await api('/api/auth',{method:'POST',body:{action:'logout'}});}catch(e){}
+    S.signedIn=false;S.sig='';S.tab=null;S.formInit=false;S.renaming=false;openPanel(false);render();
+  };
+  w.append(r,o);
+}
+
+function renderHint(){
+  var el=$('hint');
+  if(!S.slots[other(S.my)]){
+    el.hidden=false;
+    el.textContent='Your person has not joined yet. Send them the room name “'+S.roomName+'” and the password, and they pick their own name.';
+    return;
+  }
+  el.hidden=true;
+}
+
+function countFor(k){
+  var n=0;
+  for(var i=0;i<S.movies.length;i++){
+    var m=S.movies[i];
+    if(k==='w'){if(m.watched)n++;}
+    else if(!m.watched&&m.forSlot===k)n++;
+  }
+  return n;
+}
+
+function renderTabs(){
+  var el=$('tabs');el.replaceChildren();
+  var defs=[[S.my,boardLabel(S.my)],[other(S.my),boardLabel(other(S.my))],['w','Watched']];
+  defs.forEach(function(d){
+    var k=d[0];
+    var b=h('button','tab');b.type='button';b.setAttribute('role','tab');b.setAttribute('aria-selected',String(S.tab===k));
+    if(k!=='w')b.append(h('i','dot dot-'+k));
+    b.append(h('span',null,d[1]));
+    b.append(h('span','n',String(countFor(k))));
+    b.onclick=function(){S.tab=k;S.focusTab=k;saveTab();render();};
+    el.append(b);
+    if(S.focusTab===k){b.focus();S.focusTab=null;}
+  });
+}
+
+function renderBoard(){
+  var el=$('board');el.replaceChildren();
+  var tab=S.tab,list;
+  if(tab==='w'){
+    list=S.movies.filter(function(m){return m.watched;}).sort(function(x,y){return (y.watchedAt||0)-(x.watchedAt||0);});
+  }else{
+    list=S.movies.filter(function(m){return !m.watched&&m.forSlot===tab;}).sort(function(x,y){
+      if(!!y.pinned!==!!x.pinned)return y.pinned?1:-1;
+      return (y.createdAt||0)-(x.createdAt||0);
+    });
+  }
+  var head=h('div','board-head');
+  var left=h('div');
+  var title=h('h2',null,tab==='w'?'Watched together':boardLabel(tab));
+  var pinned=list.filter(function(m){return m.pinned;}).length;
+  var checked=list.filter(function(m){return m.checked&&!m.watched;});
+  title.append(h('span','sub',tab==='w'?(list.length+' watched'):(list.length+' to watch'+(pinned?' · '+pinned+' pinned':''))));
+  left.append(title);
+  head.append(left);
+  if(tab!=='w'&&checked.length){
+    var bulk=h('button','btn','Move '+checked.length+' checked to Watched');bulk.type='button';
+    bulk.onclick=async function(){
+      var ids=checked.map(function(m){return m.id;});
+      ids.forEach(function(id){var m=findMovie(id);if(m){m.watched=true;m.watchedAt=Date.now();m.pinned=false;}});
+      touch();render();
+      try{
+        for(var i=0;i<ids.length;i++){await api('/api/movies?id='+encodeURIComponent(ids[i]),{method:'PATCH',body:{watched:true,pinned:false}});}
+        toast('Moved to Watched');
+      }catch(e){toast(e.message);}
+      touch();refresh(true);
+    };
+    head.append(bulk);
+  }
+  el.append(head);
+
+  if(!list.length){
+    var e=h('div','empty-state');
+    e.insertAdjacentHTML('beforeend',ICON.film);
+    var t,p,partner=S.slots[other(S.my)];
+    if(tab==='w'){t='Nothing watched yet';p='Tick a movie off on a board, then move it here. This is your list of movies you watched together.';}
+    else if(tab===S.my){t='Nothing pinned for you yet';p=partner?'Ask '+partner.name+' to pin something here, or add a movie yourself with the button above.':'Add a movie with the button above, or wait for your person to pin something here.';}
+    else{t='Nothing pinned for '+forLabel(tab)+' yet';p='Pin a movie you want to watch together. Add a poster and a line on why.';}
+    e.append(h('h3',null,t),h('p',null,p));
+    el.append(e);
+    return;
+  }
+  var g=h('div','grid');
+  list.forEach(function(m){g.append(card(m));});
+  el.append(g);
+}
+
+function card(m){
+  var watched=!!m.watched,checked=!!m.checked&&!watched;
+  var c=h('article','card'+(m.pinned&&!watched?' is-pinned':'')+(checked?' is-checked':'')+(watched?' is-watched':''));
+  var po=h('div','poster');
+  if(m.hasImage){var im=document.createElement('img');im.src='/api/img?id='+encodeURIComponent(m.id);im.alt='';im.loading='lazy';po.append(im);}
+  else{po.classList.add('empty');po.append(h('span','initial',(m.title||'?').trim().charAt(0).toUpperCase()));}
+
+  if(!watched){
+    var pb=h('button','pin');pb.type='button';pb.innerHTML=ICON.pin;
+    pb.setAttribute('aria-pressed',String(!!m.pinned));
+    pb.setAttribute('aria-label',m.pinned?'Unpin '+m.title:'Pin '+m.title);
+    pb.onclick=function(){patch(m.id,{pinned:!m.pinned});};
+    po.append(pb);
+  }
+  if(checked||watched){var bd=h('span','badge');bd.innerHTML=ICON.check;po.append(bd);}
+  var by=m.bySlot==='a'||m.bySlot==='b'?m.bySlot:null;
+  if(by){
+    var fr=h('span','from');fr.append(h('i','dot dot-'+by));
+    fr.append(h('span',null,by===S.my?'from you':'from '+nameOf(by)));
+    po.append(fr);
+  }
+  c.append(po);
+
+  var body=h('div','cbody');
+  body.append(h('h3','ctitle',m.title||'Untitled'));
+  if(m.note)body.append(h('p','cnote',m.note));
+  if(watched){
+    var d=m.watchedAt?new Date(m.watchedAt).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+    body.append(h('p','cmeta',(d?'Watched '+d+' · ':'')+'for '+forLabel(m.forSlot)));
+  }
+
+  var foot=h('div','cfoot');
+  var row=h('div','crow');
+  if(watched){
+    var back=h('button','btn ghost','Put back');back.type='button';
+    back.onclick=function(){patch(m.id,{watched:false,checked:false});};
+    row.append(back);
+  }else{
+    var lab=h('label','tick');
+    var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!m.checked;
+    cb.onchange=function(){patch(m.id,{checked:cb.checked});};
+    lab.append(cb,h('span',null,'Watched it'));
+    row.append(lab);
+  }
+  var dl=h('button','del'+(S.confirmId===m.id?' sure':''));dl.type='button';
+  if(S.confirmId===m.id){dl.textContent='Delete?';}
+  else{dl.innerHTML=ICON.x;dl.setAttribute('aria-label','Delete '+m.title);}
+  dl.onclick=function(){
+    if(S.confirmId===m.id){clearTimeout(S.confirmTimer);S.confirmId=null;removeMovie(m.id);return;}
+    S.confirmId=m.id;clearTimeout(S.confirmTimer);
+    S.confirmTimer=setTimeout(function(){S.confirmId=null;render();},3500);
+    render();
+  };
+  row.append(dl);
+  foot.append(row);
+  if(checked){
+    var mv=h('button','btn','Move to Watched');mv.type='button';
+    mv.onclick=function(){patch(m.id,{watched:true,pinned:false});};
+    foot.append(mv);
+  }
+  body.append(foot);
+  c.append(body);
+  return c;
+}
+
+/* ---------- lobby ---------- */
+function setMode(m){
+  S.mode=m;
+  $('mode-create').setAttribute('aria-pressed',String(m==='create'));
+  $('mode-join').setAttribute('aria-pressed',String(m==='join'));
+  $('l-submit').textContent=m==='create'?'Create room':'Join room';
+  $('l-pass').autocomplete=m==='create'?'new-password':'current-password';
+  $('l-pass').placeholder=m==='create'?'At least 6 characters':'The room’s password';
+  $('l-tip').textContent=m==='create'
+    ?'Your person picks their own name when they join.'
+    :'Already in this room? Use the same name to sign back in on a new device.';
+  $('l-err').hidden=true;
+}
+
+async function submitLobby(e){
+  e.preventDefault();
+  var btn=$('l-submit');btn.disabled=true;$('l-err').hidden=true;
+  try{
+    await api('/api/auth',{method:'POST',body:{
+      action:S.mode,room:$('l-room').value,password:$('l-pass').value,name:$('l-name').value
+    }});
+    $('l-pass').value='';
+    S.tab=null;S.formInit=false;
+    await refresh(true);
+  }catch(err){
+    $('l-err').textContent=err.message;$('l-err').hidden=false;
+  }finally{btn.disabled=false;}
+}
+
+/* ---------- wiring ---------- */
+function wire(){
+  $('mode-create').onclick=function(){setMode('create');};
+  $('mode-join').onclick=function(){setMode('join');};
+  $('lobby-form').addEventListener('submit',submitLobby);
+
+  $('add-toggle').onclick=function(){openPanel($('panel').hidden);};
+  $('f-cancel').onclick=function(){openPanel(false);};
+  $('panel').addEventListener('submit',addMovie);
+  $('for-a').onchange=$('for-b').onchange=syncForm;
+
+  var drop=$('drop'),file=$('f-file');
+  drop.onclick=function(){file.click();};
+  drop.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();}};
+  file.onchange=function(){if(file.files[0])setImage(file.files[0]);};
+  $('f-clear').onclick=clearImage;
+  ['dragenter','dragover'].forEach(function(n){drop.addEventListener(n,function(e){e.preventDefault();drop.classList.add('over');});});
+  ['dragleave','drop'].forEach(function(n){drop.addEventListener(n,function(e){e.preventDefault();drop.classList.remove('over');});});
+  drop.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files[0];if(f)setImage(f);});
+
+  document.addEventListener('paste',function(e){
+    if(!S.signedIn||!e.clipboardData)return;
+    var files=Array.prototype.slice.call(e.clipboardData.files||[]).filter(function(f){return /^image\//.test(f.type);});
+    if(!files.length)return;
+    e.preventDefault();
+    if($('panel').hidden)openPanel(true);
+    setImage(files[0]);
+  });
+
+  // Pick up your person's changes every few seconds while the tab is open.
+  setInterval(function(){if(!document.hidden&&S.signedIn)refresh(false);},POLL_MS);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.signedIn)refresh(false);});
+}
+
+wire();
+setMode('create');
+refresh(true);
+})();
+</script>
+</body>
+</html>
