@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/cinema/reel.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Instrument+Sans:wght@400;500;600&family=Rye&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=DM+Mono&family=Instrument+Sans:wght@400;500;600&family=Rye&display=swap">
 <style>
 /* Layout: a poster wall. Two boards (one per person) plus a Watched board, as ticket-stub tabs. 2:3 poster cards in a grid; each person has a colour that marks who pinned what. */
 :root{
@@ -30,6 +30,7 @@
   --font-display:'Rye',Papyrus,'Hiragino Kaku Gothic Pro',fantasy;
   --font-body:'Instrument Sans',system-ui,sans-serif;
   --font-mono:'DM Mono',ui-monospace,Menlo,monospace;
+  --font-hand:'Caveat','Segoe Print','Bradley Hand',cursive;
   --board:#e3cfad;
   --board-dark:#3c2924;
   --paper:#fff8e8;
@@ -229,66 +230,121 @@ svg{display:block}
 .board-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:8px 16px;margin-bottom:14px;text-align:center}
 .board-head h2{margin:0;font:700 22px/1.2 var(--font-display);letter-spacing:-.01em}
 .board-head .sub{font:400 12px var(--font-mono);color:var(--muted);margin-left:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,200px));justify-content:center;gap:22px 18px}
+/* ---- scrapbook sheets: ruled paper, torn edges, pinned with a red push pin ----
+   The sheet colours stay light in dark mode too, so handwriting is always dark ink on paper. */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,250px));justify-content:center;gap:46px 32px;padding-top:20px}
 .card{
-  position:relative;display:flex;flex-direction:column;min-width:0;overflow:visible;
-  background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 75%,#8f765e);
-  border-radius:2px;box-shadow:2px 4px 0 rgb(55 31 17 / .16),0 8px 14px rgb(55 31 17 / .14);
-  transform:rotate(-1.2deg);
+  --sheet-ink:#2a1a16;--sheet-accent:#922839;--rule:#b9b6c9;--margin:#d98e98;--hole:#6e1a27;
+  --rot:-1deg;--prot:0deg;--brot:2deg;
+  position:relative;isolation:isolate;display:flex;flex-direction:column;min-width:0;
+  color:var(--sheet-ink);color-scheme:light;
+  transform:rotate(var(--rot));transition:transform .18s ease,filter .18s ease;
+  filter:drop-shadow(2px 5px 4px rgb(45 26 17 / .3));
 }
-.card:nth-child(3n){transform:rotate(1.4deg)}
-.card:nth-child(4n){transform:rotate(-2.2deg)}
+.card.is-pinned{filter:drop-shadow(3px 9px 6px rgb(45 26 17 / .36))}
+@media (hover:hover){.card:hover{transform:rotate(0deg) translateY(-3px)}}
+
+/* crumpled burgundy paper peeking out from behind some sheets */
 .card::before{
-  content:"";position:absolute;z-index:2;top:-9px;left:50%;width:15px;height:15px;
-  border-radius:50%;background:var(--accent);border:2px solid rgb(255 255 255 / .75);
-  box-shadow:0 2px 3px rgb(55 31 17 / .35);transform:translateX(-50%);
+  content:"";position:absolute;z-index:-2;display:none;
+  left:-10px;right:14px;top:30%;bottom:-11px;
+  background:url('/assets/scrapbook/crumple.jpg') center/cover;
+  transform:rotate(var(--brot));
 }
-.card.is-pinned{border-color:var(--accent)}
-.poster{position:relative;aspect-ratio:2/3;background:var(--surface-2);overflow:hidden;border-radius:1px}
+.card.has-back::before{display:block}
+
+/* the sheet: torn top and bottom, with a pale rim where the paper fibres show */
+.rim{position:absolute;inset:0;z-index:-1;background:#fffdf7;clip-path:var(--tear-rim,none)}
+.sheet{
+  position:relative;flex:1;display:flex;flex-direction:column;
+  background:url('/assets/scrapbook/grain.png'),linear-gradient(172deg,#faf3e2 0%,#f4eada 55%,#eee1c8 100%);
+  clip-path:var(--tear,none);
+}
+.sheet::before{
+  content:"";position:absolute;z-index:0;top:0;bottom:0;left:0;width:30px;pointer-events:none;
+  background:radial-gradient(circle at 12px 22px,var(--hole) 0 4.4px,rgb(255 255 255 / .55) 4.6px 5.4px,transparent 5.6px) 0 0/30px 64px repeat-y;
+}
+.sheet::after{content:"";position:absolute;z-index:0;top:0;bottom:0;left:25px;width:1px;background:var(--margin);pointer-events:none}
+.sheet > *{position:relative;z-index:1}
+
+/* the poster, stuck on like a photo print */
+.frame{
+  margin:34px 14px 12px 34px;padding:5px;background:#fffdf6;
+  box-shadow:0 1px 2px rgb(0 0 0 / .4),0 4px 9px rgb(60 30 20 / .2);
+  transform:rotate(var(--prot));
+}
+.poster{position:relative;aspect-ratio:2/3;background:#e6d8bf;overflow:hidden}
 .poster img{width:100%;height:100%;object-fit:cover;display:block}
 .poster.empty{display:flex;align-items:center;justify-content:center}
 .poster.empty::before,.poster.empty::after{
   content:"";position:absolute;top:0;bottom:0;width:16px;
-  background:radial-gradient(circle at 8px 12px,var(--bg) 0 3.5px,transparent 4px) 0 0/16px 24px repeat-y;
+  background:radial-gradient(circle at 8px 12px,#f6ecd6 0 3.5px,transparent 4px) 0 0/16px 24px repeat-y;
 }
 .poster.empty::before{left:4px}
 .poster.empty::after{right:4px}
-.initial{font:800 76px/1 var(--font-display);color:var(--accent);opacity:.55}
-.pin{
-  position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;
-  background:var(--surface);color:var(--muted);border:1px solid var(--line);
-}
-.pin:hover{color:var(--fg)}
-.pin[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.pin[aria-pressed="true"] svg{fill:currentColor}
+.initial{font:800 76px/1 var(--font-display);color:var(--sheet-accent);opacity:.6}
 .from{
-  position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);
-  display:flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
-  background:var(--surface);color:var(--fg);font:400 11px var(--font-mono);
+  position:absolute;left:6px;bottom:6px;max-width:calc(100% - 12px);
+  display:flex;align-items:center;gap:6px;padding:2px 8px;border-radius:2px;
+  background:rgb(255 248 232 / .94);color:var(--sheet-ink);font:400 11px/1.5 var(--font-mono);
+  box-shadow:0 1px 2px rgb(0 0 0 / .25);transform:rotate(-1.5deg);
 }
 .from span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge{
   position:absolute;left:8px;top:8px;width:28px;height:28px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;background:var(--ok);color:var(--ok-ink);
+  box-shadow:0 1px 3px rgb(0 0 0 / .35);
+}
+.stamp{
+  position:absolute;right:8px;top:14px;transform:rotate(8deg);
+  font:400 12px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--sheet-accent);border:2px solid currentColor;border-radius:3px;padding:4px 7px;
+  background:rgb(255 248 232 / .72);
 }
 .is-checked .poster img,.is-watched .poster img{filter:grayscale(.75) brightness(.92)}
-.cbody{padding:12px;display:flex;flex-direction:column;gap:6px;flex:1}
-.ctitle{margin:0;font:700 16px/1.25 var(--font-display);overflow-wrap:anywhere}
-.is-checked .ctitle{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--muted)}
-.cnote{margin:0;font-size:13px;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
-.cmeta{margin:0;font:400 12px var(--font-mono);color:var(--ink)}
-.cfoot{margin-top:auto;padding-top:8px;display:flex;flex-direction:column;gap:8px}
-.crow{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.tick{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;min-height:32px}
-.tick input{width:18px;height:18px;accent-color:var(--accent);margin:0}
-.del{
-  min-width:32px;height:32px;padding:0 6px;border-radius:8px;border:1px solid transparent;background:none;
-  color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;
+
+/* handwriting on the ruled lines */
+.lines{
+  min-height:48px;padding:0 14px 0 34px;
+  background:repeating-linear-gradient(to bottom,transparent 0 23px,var(--rule) 23px 24px);
 }
-.del:hover{color:var(--danger)}
-.del.sure{color:var(--danger);border-color:var(--danger)}
+.ctitle{margin:0;font:700 25px/24px var(--font-hand);overflow-wrap:anywhere}
+.is-checked .ctitle{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--sheet-accent)}
+.cnote{margin:0;font:500 20px/24px var(--font-hand);white-space:pre-wrap;overflow-wrap:anywhere}
+.cmeta{margin:0;font:500 18px/24px var(--font-hand)}
+.cfoot{margin-top:auto;padding:10px 14px 20px 34px;display:flex;flex-direction:column;gap:8px}
+.crow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tick{display:flex;align-items:center;gap:8px;font:700 20px/1 var(--font-hand);min-height:36px;cursor:pointer}
+.tick input{width:18px;height:18px;accent-color:var(--sheet-accent);margin:0}
+.del{
+  min-width:36px;height:36px;padding:0 6px;border-radius:4px;border:1px solid transparent;background:none;
+  color:var(--sheet-ink);opacity:.7;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;
+}
+.del:hover{color:#a52c27;opacity:1}
+.del.sure{color:#a52c27;border-color:#a52c27;opacity:1}
 .card .btn{width:100%;padding:8px 10px}
+.card .btn.ghost{color:var(--sheet-ink);border-color:#a89b84}
+.card .btn.ghost:hover{background:rgb(60 40 25 / .08)}
+
+/* the red push pin is the pin button: pressed in when pinned, a faint loose pin when not */
+.pin{
+  position:absolute;z-index:3;top:-24px;left:50%;margin-left:-22px;width:44px;height:54px;padding:0;
+  display:flex;align-items:flex-start;justify-content:center;
+  background:none;border:0;border-radius:10px;cursor:pointer;
+}
+.pin svg{width:34px;height:46px;transform-origin:50% 90%;transition:transform .16s ease,opacity .16s ease,filter .16s ease}
+.pin[aria-pressed="true"] svg{transform:rotate(-10deg) translateY(5px)}
+.pin[aria-pressed="false"] svg{transform:rotate(26deg) translateY(-6px);opacity:.42;filter:grayscale(.7)}
+.pin[aria-pressed="false"]:hover svg,.pin[aria-pressed="false"]:focus-visible svg{transform:rotate(8deg) translateY(-2px);opacity:.95;filter:none}
+
+/* chrome star stickers on the corner of some sheets, and on every watched one */
+.star{position:absolute;z-index:2;pointer-events:none;overflow:visible}
+.star-lg{width:60px;height:60px;bottom:-20px}
+.star-sm{width:34px;height:34px;bottom:-22px}
+.stars-left .star-lg{left:-24px;transform:rotate(-12deg)}
+.stars-left .star-sm{left:32px;transform:rotate(16deg)}
+.stars-right .star-lg{right:-22px;transform:rotate(14deg)}
+.stars-right .star-sm{right:34px;transform:rotate(-14deg)}
 
 .empty-state{
   border:1.5px dashed var(--line);border-radius:12px;padding:40px 20px;text-align:center;
@@ -301,7 +357,7 @@ svg{display:block}
 #board{
   position:relative;overflow:hidden;padding:34px 24px 40px;
   border:10px solid var(--ink);border-radius:6px;
-  background:linear-gradient(rgb(255 255 255 / .26),rgb(255 255 255 / .26)),var(--list-bg);
+  background:linear-gradient(rgb(255 255 255 / .12),rgb(255 255 255 / .12)),var(--board);
   box-shadow:0 12px 0 rgb(45 26 17 / .2),0 18px 30px rgb(45 26 17 / .16);
 }
 #board::before,#board::after{
@@ -324,6 +380,7 @@ svg{display:block}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
 @media (max-width:560px){
+  .grid{grid-template-columns:repeat(auto-fit,minmax(200px,260px))}
   .panel{grid-template-columns:minmax(0,1fr)}
   .poster-col{max-width:168px}
   h1{font-size:24px}
@@ -335,10 +392,30 @@ svg{display:block}
   .room-choice{width:auto;max-width:180px}
   .room-add{width:auto;margin:0}
 }
-@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media (prefers-reduced-motion:reduce){.toast,.card,.pin svg{transition:none}}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="chrome" x1="0.05" y1="0.05" x2="0.95" y2="0.95">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".22" stop-color="#c9ced8"/><stop offset=".45" stop-color="#7d8493"/><stop offset=".62" stop-color="#e8ebf1"/><stop offset=".82" stop-color="#9aa1af"/><stop offset="1" stop-color="#f4f6fa"/>
+    </linearGradient>
+    <linearGradient id="chromeDark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a3f4a"/><stop offset="1" stop-color="#0f1116"/></linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.1"/></filter>
+    <symbol id="star" viewBox="0 0 100 100" overflow="visible">
+      <path d="M50.0 10.0 Q61.2 38.6 91.8 40.4 Q68.1 59.9 75.9 89.6 Q50.0 73.0 24.1 89.6 Q31.9 59.9 8.2 40.4 Q38.8 38.6 50.0 10.0Z" fill="url(#chrome)" stroke="#6a7080" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M57.9 38.6 Q59.2 52.0 72.0 56.0 Q59.7 61.4 59.8 74.7 Q50.9 64.7 38.2 69.0 Q45.0 57.4 37.1 46.7 Q50.1 49.5 57.9 38.6Z" fill="url(#chromeDark)" filter="url(#soft)" opacity=".92"/>
+      <path d="M30 40 Q42 24 50 14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+      <path d="M20 58 Q16 54 12 50" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>
+      <path d="M70 70 Q76 80 80 90" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".55"/>
+    </symbol>
+    <linearGradient id="pinBody" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#8e1020"/><stop offset=".3" stop-color="#ff6672"/><stop offset=".55" stop-color="#d42a3a"/><stop offset="1" stop-color="#7a0c1a"/></linearGradient>
+    <radialGradient id="pinDome" cx=".34" cy=".28" r=".85"><stop offset="0" stop-color="#ffc2c7"/><stop offset=".3" stop-color="#f0485a"/><stop offset="1" stop-color="#8a0f1f"/></radialGradient>
+    <linearGradient id="pinBase" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#7a0c1a"/><stop offset=".4" stop-color="#e03a4a"/><stop offset="1" stop-color="#6b0a17"/></linearGradient>
+    <linearGradient id="pinNeedle" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#6b717c"/><stop offset=".5" stop-color="#e5e8ee"/><stop offset="1" stop-color="#7a808b"/></linearGradient>
+  </defs>
+</svg>
 <div class="cinema-decor" aria-hidden="true">
   <div class="cinema-reel reel-a"></div>
   <div class="cinema-reel reel-b"></div>
@@ -654,7 +731,17 @@ async function addMovie(ev){
 }
 
 /* ---------- render ---------- */
+// The board is rebuilt on every change (and by the 5-second sync), which would drop keyboard focus.
+// Controls carry a data-key, and focus goes back to the one that had it.
 function render(){
+  var a=document.activeElement,key=a&&a.getAttribute?a.getAttribute('data-key'):null;
+  renderNow();
+  if(key){
+    var el=document.querySelector('[data-key="'+key+'"]');
+    if(el&&el!==document.activeElement)el.focus({preventScroll:true});
+  }
+}
+function renderNow(){
   $('status').hidden=true;
   var showLobby=!S.signedIn||S.roomPicker;
   $('app').hidden=showLobby;
@@ -810,51 +897,116 @@ function renderBoard(){
   el.append(g);
 }
 
+/* ---------- scrapbook look: the same movie always gets the same tilt, tear and stickers ---------- */
+var PIN_SVG='<svg viewBox="0 0 40 52" aria-hidden="true" focusable="false">'
+  +'<rect x="19" y="36" width="2.4" height="15" rx="1.2" fill="url(#pinNeedle)"/>'
+  +'<ellipse cx="20" cy="37" rx="14" ry="5.2" fill="url(#pinBase)"/>'
+  +'<ellipse cx="20" cy="35.6" rx="14" ry="4.6" fill="#e03a4a" opacity=".55"/>'
+  +'<path d="M11.5 36C11.5 29 13.5 22 15 16L25 16C26.5 22 28.5 29 28.5 36C25 39 15 39 11.5 36Z" fill="url(#pinBody)"/>'
+  +'<ellipse cx="20" cy="16" rx="10" ry="4" fill="#c42535"/>'
+  +'<path d="M10 16C10 6 14.5 2 20 2C25.5 2 30 6 30 16C27 19.5 13 19.5 10 16Z" fill="url(#pinDome)"/>'
+  +'<path d="M14 14C14 9 16 6 18.5 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>'
+  +'<path d="M15.5 30C16 26 16.8 22 17.6 19" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".45"/>'
+  +'</svg>';
+var STAR_SVG='<svg class="star star-lg" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><use href="#star"/></svg>'
+  +'<svg class="star star-sm" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><use href="#star"/></svg>';
+
+function seeded(id){
+  var str=String(id),s=1779033703^str.length,i;
+  for(i=0;i<str.length;i++){s=Math.imul(s^str.charCodeAt(i),3432918353);s=s<<13|s>>>19;}
+  var a=s>>>0;
+  return function(){a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+}
+function pct(n){return (Math.round(n*10)/10)+'%';}
+// A ragged top and bottom edge (clip-path polygons), plus a slightly larger pale copy for the torn-fibre rim.
+function tornEdges(R){
+  var sheet=[],rim=[],x=0,y,p,dx;
+  for(;;){
+    y=2.5+R()*5.5;
+    sheet.push(pct(x)+' '+y.toFixed(1)+'px');
+    rim.push(pct(x)+' '+(y-2.4).toFixed(1)+'px');
+    if(x>=100)break;
+    x=Math.min(100,x+4+R()*5);
+  }
+  for(p=18;p<90;p+=18+R()*14){
+    dx=R()*1.6;
+    sheet.push((100-dx).toFixed(2)+'% '+pct(p));
+    rim.push(Math.min(100,100-dx+0.9).toFixed(2)+'% '+pct(p));
+  }
+  x=100;
+  for(;;){
+    y=2.5+R()*5.5;
+    sheet.push(pct(x)+' calc(100% - '+y.toFixed(1)+'px)');
+    rim.push(pct(x)+' calc(100% - '+(y-2.4).toFixed(1)+'px)');
+    if(x<=0)break;
+    x=Math.max(0,x-(4+R()*5));
+  }
+  return {sheet:'polygon('+sheet.join(',')+')',rim:'polygon('+rim.join(',')+')'};
+}
+
 function card(m){
   var watched=!!m.watched,checked=!!m.checked&&!watched;
-  var c=h('article','card'+(m.pinned&&!watched?' is-pinned':'')+(checked?' is-checked':'')+(watched?' is-watched':''));
+  // Draw every random number in a fixed order so a movie's look never changes when its state does.
+  var R=seeded(m.id),rot=R()*4.2-2.1,prot=R()*3-1.5,brot=R()*7-3.5,backRoll=R(),starRoll=R(),sideRoll=R(),edges=tornEdges(R);
+  var hasBack=watched||backRoll<.55,hasStars=watched||starRoll<.26;
+  var c=h('article','card'+(m.pinned&&!watched?' is-pinned':'')+(checked?' is-checked':'')+(watched?' is-watched':'')
+    +(hasBack?' has-back':'')+(hasStars?' has-stars':'')+(sideRoll<.5?' stars-left':' stars-right'));
+  c.style.setProperty('--rot',rot.toFixed(2)+'deg');
+  c.style.setProperty('--prot',prot.toFixed(2)+'deg');
+  c.style.setProperty('--brot',brot.toFixed(2)+'deg');
+  c.style.setProperty('--tear',edges.sheet);
+  c.style.setProperty('--tear-rim',edges.rim);
+
+  if(!watched){
+    var pb=h('button','pin');pb.type='button';pb.innerHTML=PIN_SVG;
+    pb.setAttribute('aria-pressed',String(!!m.pinned));
+    pb.setAttribute('aria-label',m.pinned?'Unpin '+m.title:'Pin '+m.title);
+    pb.title=m.pinned?'Unpin':'Pin to the top';pb.setAttribute('data-key','pin-'+m.id);
+    pb.onclick=function(){patch(m.id,{pinned:!m.pinned});};
+    c.append(pb);
+  }
+  var rim=h('div','rim');rim.setAttribute('aria-hidden','true');
+  c.append(rim);
+  var sheet=h('div','sheet');
+
+  var frame=h('div','frame');
   var po=h('div','poster');
   if(m.hasImage){var im=document.createElement('img');im.src='/api/img?id='+encodeURIComponent(m.id);im.alt='';im.loading='lazy';po.append(im);}
   else{po.classList.add('empty');po.append(h('span','initial',(m.title||'?').trim().charAt(0).toUpperCase()));}
-
-  if(!watched){
-    var pb=h('button','pin');pb.type='button';pb.innerHTML=ICON.pin;
-    pb.setAttribute('aria-pressed',String(!!m.pinned));
-    pb.setAttribute('aria-label',m.pinned?'Unpin '+m.title:'Pin '+m.title);
-    pb.onclick=function(){patch(m.id,{pinned:!m.pinned});};
-    po.append(pb);
-  }
   if(checked||watched){var bd=h('span','badge');bd.innerHTML=ICON.check;po.append(bd);}
+  if(watched){var st=h('span','stamp','Watched');st.setAttribute('aria-hidden','true');po.append(st);}
   var by=m.bySlot==='a'||m.bySlot==='b'?m.bySlot:null;
   if(by){
     var fr=h('span','from');fr.append(h('i','dot dot-'+by));
     fr.append(h('span',null,by===S.my?'from you':'from '+nameOf(by)));
     po.append(fr);
   }
-  c.append(po);
+  frame.append(po);
+  sheet.append(frame);
 
-  var body=h('div','cbody');
-  body.append(h('h3','ctitle',m.title||'Untitled'));
-  if(m.note)body.append(h('p','cnote',m.note));
+  var lines=h('div','lines');
+  lines.append(h('h3','ctitle',m.title||'Untitled'));
+  if(m.note)lines.append(h('p','cnote',m.note));
   if(watched){
-    var d=m.watchedAt?new Date(m.watchedAt).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
-    body.append(h('p','cmeta',(d?'Watched '+d+' · ':'')+'for '+forLabel(m.forSlot)));
+    var wd=m.watchedAt?new Date(m.watchedAt):null,d=wd?wd.toLocaleDateString(undefined,wd.getFullYear()===new Date().getFullYear()?{day:'numeric',month:'short'}:{day:'numeric',month:'short',year:'numeric'}):'';
+    lines.append(h('p','cmeta',(d?'Watched '+d+' · ':'')+'for '+forLabel(m.forSlot)));
   }
+  sheet.append(lines);
 
   var foot=h('div','cfoot');
   var row=h('div','crow');
   if(watched){
-    var back=h('button','btn ghost','Put back');back.type='button';
+    var back=h('button','btn ghost','Put back');back.type='button';back.setAttribute('data-key','back-'+m.id);
     back.onclick=function(){patch(m.id,{watched:false,checked:false});};
     row.append(back);
   }else{
     var lab=h('label','tick');
-    var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!m.checked;
+    var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!m.checked;cb.setAttribute('data-key','tick-'+m.id);
     cb.onchange=function(){patch(m.id,{checked:cb.checked});};
     lab.append(cb,h('span',null,'Watched it'));
     row.append(lab);
   }
-  var dl=h('button','del'+(S.confirmId===m.id?' sure':''));dl.type='button';
+  var dl=h('button','del'+(S.confirmId===m.id?' sure':''));dl.type='button';dl.setAttribute('data-key','del-'+m.id);
   if(S.confirmId===m.id){dl.textContent='Delete?';}
   else{dl.innerHTML=ICON.x;dl.setAttribute('aria-label','Delete '+m.title);}
   dl.onclick=function(){
@@ -866,12 +1018,13 @@ function card(m){
   row.append(dl);
   foot.append(row);
   if(checked){
-    var mv=h('button','btn','Move to Watched');mv.type='button';
+    var mv=h('button','btn','Move to Watched');mv.type='button';mv.setAttribute('data-key','mv-'+m.id);
     mv.onclick=function(){patch(m.id,{watched:true,pinned:false});};
     foot.append(mv);
   }
-  body.append(foot);
-  c.append(body);
+  sheet.append(foot);
+  c.append(sheet);
+  if(hasStars)c.insertAdjacentHTML('beforeend',STAR_SVG);
   return c;
 }
 
